@@ -10,8 +10,7 @@ import subprocess
 with st.sidebar:
     st.header("⚙️ Configurações de E-mail")
     email_usuario = st.text_input("E-mail Remetente:", placeholder="exemplo@empresa.com")
-    senha_usuario = st.text_input("Senha de App:", type="password")
-    st.info("A senha de app garante que o script acesse o servidor SMTP com segurança.")
+    senha_usuario = st.text_input("Senha:", type="password")
 
 # --- FUNÇÃO DE CONVERSÃO (LINUX/LIBREOFFICE) ---
 def converter_para_pdf(caminho_docx):
@@ -35,7 +34,7 @@ def enviar_email_smtp(destinatarios, nome_aluno, caminho_pdf, remetente, senha):
     # O campo 'To' aceita uma string com e-mails separados por vírgula
     msg['To'] = destinatarios 
     
-    msg.set_content(f"Olá {nome_aluno}, seu boletim personalizado segue em anexo.")
+    msg.set_content(f"Olá {nome_aluno}! Seu boletim da P1 do primeiro trimestre segue em anexo.")
 
     with open(caminho_pdf, 'rb') as f:
         msg.add_attachment(
@@ -51,7 +50,7 @@ def enviar_email_smtp(destinatarios, nome_aluno, caminho_pdf, remetente, senha):
         server.send_message(msg)
 
 # --- INTERFACE PRINCIPAL ---
-st.title("🚀 Disparador de Boletins")
+st.title("Disparador de Boletins")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -78,7 +77,7 @@ if arq_excel and arq_word:
                     # 1. Gerar Word
                     doc = DocxTemplate(arq_word)
                     doc.render(row.to_dict())
-                    temp_docx = f"temp_{row['Inscrição']}.docx"
+                    temp_docx = f"Inscricao_{row['Inscrição']}.docx"
                     doc.save(temp_docx)
                     
                     # 2. Converter para PDF
