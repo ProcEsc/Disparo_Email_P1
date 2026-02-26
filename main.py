@@ -4,13 +4,28 @@ from docxtpl import DocxTemplate
 import smtplib
 from email.message import EmailMessage
 import os
-from docx2pdf import convert
+import subprocess # Para rodar o LibreOffice no Linux
 
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("⚙️ Configurações de E-mail")
-    email_usuario = st.text_input("Seu e-mail (Remetente):", placeholder="exemplo@sistemapoliedro.com.br")
+    # Usando st.secrets para segurança ou inputs manuais
+    email_usuario = st.text_input("E-mail Remetente:", placeholder="exemplo@empresa.com")
     senha_usuario = st.text_input("Senha de App:", type="password")
+
+# --- FUNÇÃO DE CONVERSÃO LINUX (LIBREOFFICE) ---
+def converter_para_pdf(caminho_docx):
+    # O comando '--headless' roda o LibreOffice sem abrir interface gráfica
+    try:
+        subprocess.run([
+            'libreoffice', '--headless', '--convert-to', 'pdf', 
+            '--outdir', os.path.dirname(caminho_docx), 
+            caminho_docx
+        ], check=True)
+        return caminho_docx.replace(".docx", ".pdf")
+    except Exception as e:
+        st.error(f"Erro na conversão PDF: {e}")
+        return None
 
 # --- FUNÇÃO DE ENVIO ---
 def enviar_email_smtp(destinatario, nome_aluno, caminho_pdf, remetente, senha):
@@ -18,71 +33,55 @@ def enviar_email_smtp(destinatario, nome_aluno, caminho_pdf, remetente, senha):
     msg['Subject'] = f"Boletim Escolar - {nome_aluno}"
     msg['From'] = remetente
     msg['To'] = destinatario
-    msg.set_content(f"Olá {nome_aluno}, seu boletim está disponível em anexo.")
+    msg.set_content(f"Olá {nome_aluno}, seu boletim segue em anexo.")
 
     with open(caminho_pdf, 'rb') as f:
-        file_data = f.read()
-        msg.add_attachment(
-            file_data, 
-            maintype='application', 
-            subtype='pdf', 
-            filename=os.path.basename(caminho_pdf)
-        )
+        msg.add_attachment(f.read(), maintype='application', subtype='pdf', filename=os.path.basename(caminho_pdf))
 
+    # Servidor Outlook/Office365
     with smtplib.SMTP("smtp.office365.com", 587) as server:
         server.starttls()
         server.login(remetente, senha)
         server.send_message(msg)
 
-# --- INTERFACE PRINCIPAL ---
-st.title("🚀 Disparador de Boletins")
+# --- INTERFACE ---
+st.title("🚀 Disparador de Boletins (Cloud Edition)")
 
 col1, col2 = st.columns(2)
 with col1:
-    arq_excel = st.file_uploader("Upload da Planilha (Excel)", type="xlsx")
+    arq_excel = st.file_uploader("Upload Excel", type="xlsx")
 with col2:
-    arq_word = st.file_uploader("Upload do Modelo (Word)", type="docx")
+    arq_word = st.file_uploader("Upload Template Word", type="docx")
 
 if arq_excel and arq_word:
     df = pd.read_excel(arq_excel)
-    st.write(f"Total de alunos encontrados: {len(df)}")
     
-    if st.button("🚀 Iniciar Disparos"):
+    if st.button("🚀 Iniciar Processamento"):
         if not email_usuario or not senha_usuario:
-            st.error("Por favor, preencha as credenciais na barra lateral.")
+            st.warning("Preencha as credenciais na barra lateral!")
         else:
             progresso = st.progress(0)
-            status_text = st.empty()
-            
-            for i, (index, row) in enumerate(df.iterrows()):
-                nome_aluno = row['Nome']
-                status_text.text(f"Processando: {nome_aluno}")
-                
+            for i, (idx, row) in enumerate(df.iterrows()):
                 try:
                     # 1. Gerar Word
                     doc = DocxTemplate(arq_word)
                     doc.render(row.to_dict())
-                    nome_docx = f"temp_{row['Inscrição']}.docx"
-                    doc.save(nome_docx)
+                    temp_docx = f"boletim_{row['Inscrição']}.docx"
+                    doc.save(temp_docx)
                     
-                    # 2. Converter para PDF
-                    nome_pdf = nome_docx.replace(".docx", ".pdf")
-                    convert(nome_docx, nome_pdf) 
+                    # 2. Converter PDF (Método Linux)
+                    temp_pdf = converter_para_pdf(temp_docx)
                     
-                    # 3. Enviar E-mail (Agora com todos os 5 argumentos necessários)
-                    enviar_email_smtp(row['E-mail p4ed'], nome_aluno, nome_pdf, email_usuario, senha_usuario)
-                    
-                    st.toast(f"✅ Enviado: {nome_aluno}")
-                    
-                    # 4. Limpeza
-                    os.remove(nome_docx)
-                    os.remove(nome_pdf)
-                    
+                    if temp_pdf and os.path.exists(temp_pdf):
+                        # 3. Enviar
+                        enviar_email_smtp(row['E-mail p4ed'], row['Nome'], temp_pdf, email_usuario, senha_usuario)
+                        st.success(f"Enviado: {row['Nome']}")
+                        
+                        # Limpeza
+                        os.remove(temp_docx)
+                        os.remove(temp_pdf)
                 except Exception as e:
-                    st.error(f"❌ Erro em {nome_aluno}: {e}")
+                    st.error(f"Falha em {row['Nome']}: {e}")
                 
-                # Atualiza barra de progresso
                 progresso.progress((i + 1) / len(df))
-            
-            status_text.text("Concluído!")
             st.balloons()
