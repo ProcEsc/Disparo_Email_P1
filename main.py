@@ -111,5 +111,4 @@ if arq_excel and arq_word:
                 progresso.progress((i + 1) / len(df))
             
             status_text.text("Concluído!")
-            st.balloons()
             st.success("Processamento finalizado com sucesso!")
