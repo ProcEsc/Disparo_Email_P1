@@ -1,4 +1,3 @@
-streamlit
 pandas
 docxtpl
-docx2pdf
+openpyxl
