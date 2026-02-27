@@ -36,7 +36,7 @@ def enviar_email_smtp(destinatarios, nome_aluno, caminho_pdf, remetente, senha):
     msg['Subject'] = f"Boletim Escolar - {nome_aluno}"
     msg['From'] = remetente
     msg['To'] = destinatarios 
-    msg.set_content(f"Olá {nome_aluno}! Seu boletim segue em anexo.")
+    msg.set_content(f"Olá, {nome_aluno}! As notas da sua P1 do primeiro trimestre seguem em anexo. Confira o gabarito e resolução disponibilizadas em seu drive! ")
 
     with open(caminho_pdf, 'rb') as f:
         msg.add_attachment(
@@ -79,7 +79,7 @@ if arq_excel and arq_word:
                         doc = DocxTemplate(arq_word)
                         doc.render(row.to_dict())
                         
-                        temp_docx = os.path.join(pasta_tmp, f"boletim_{idx}.docx")
+                        temp_docx = os.path.join(pasta_tmp, f"boletim_{row['Inscrição']}.docx")
                         doc.save(temp_docx)
                         
                         # 2. Converter (PDF será salvo na mesma pasta tmp)
